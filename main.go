@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"github.com/antchfx/htmlquery"
+	"github.com/PuerkitoBio/goquery"
 	"golang.org/x/net/html/charset"
 	"golang.org/x/text/encoding"
 	"golang.org/x/text/encoding/unicode"
@@ -30,18 +30,26 @@ func main() {
 	//	fmt.Println("fetch card news:", string(m[1]))
 	//}
 
-	doc, err := htmlquery.Parse(bytes.NewReader(body))
+	//doc, err := htmlquery.Parse(bytes.NewReader(body))
+	//
+	//if err != nil {
+	//	fmt.Println("htmlquery.Parse failed: %v", err)
+	//}
+	//
+	//nodes := htmlquery.Find(doc, `//div[@class='small_cardcontent__BTALp']//h2`)
+	//
+	//for _, node := range nodes {
+	//	fmt.Println("fetch card news:", node.FirstChild.Data)
+	//}
 
+	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(body))
 	if err != nil {
-		fmt.Println("htmlquery.Parse failed: %v", err)
+		fmt.Println("goquery.NewDocumentFromReader failed: %v", err)
 	}
 
-	nodes := htmlquery.Find(doc, `//div[@class='small_cardcontent__BTALp']//h2`)
-
-	for _, node := range nodes {
-		fmt.Println("fetch card news:", node.FirstChild.Data)
-	}
-
+	doc.Find("div.small_cardcontent__BTALp h2").Each(func(i int, s *goquery.Selection) {
+		fmt.Println("fetch card news:", i, s.Text())
+	})
 }
 
 // Fetch 用于获取网页内容
