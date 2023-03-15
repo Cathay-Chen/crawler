@@ -9,7 +9,10 @@ import (
 	"golang.org/x/text/transform"
 	"io/ioutil"
 	"net/http"
+	"regexp"
 )
+
+var headerRe = regexp.MustCompile(`<div class="small_cardcontent__BTALp"[\s\S]*?<h2>([\s\S]*?)</h2>`)
 
 func main() {
 	url := "https://www.thepaper.cn/"
@@ -20,7 +23,11 @@ func main() {
 		return
 	}
 
-	fmt.Println(string(body))
+	matches := headerRe.FindAllSubmatch(body, -1)
+
+	for _, m := range matches {
+		fmt.Println("fetch card news:", string(m[1]))
+	}
 }
 
 // Fetch 用于获取网页内容
