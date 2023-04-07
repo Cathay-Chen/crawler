@@ -1,68 +1,41 @@
 package main
 
 import (
-	"bufio"
+	"bytes"
 	"fmt"
-	"golang.org/x/net/html/charset"
-	"golang.org/x/text/encoding"
-	"golang.org/x/text/encoding/unicode"
-	"golang.org/x/text/transform"
-	"io/ioutil"
-	"net/http"
-	"regexp"
+	"github.com/Cathay-Chen/crawler/collect"
+	"github.com/Cathay-Chen/crawler/proxy"
+	"github.com/PuerkitoBio/goquery"
+	"time"
 )
 
-var headerRe = regexp.MustCompile(`<div class="small_cardcontent__BTALp"[\s\S]*?<h2>([\s\S]*?)</h2>`)
-
 func main() {
-	url := "https://www.thepaper.cn/"
-	body, err := Fetch(url)
-
+	proxyURLs := []string{"http://127.0.0.1:7890", "http://127.0.0.1:7890"}
+	p, err := proxy.RoundRobinProxySwitcher(proxyURLs...)
 	if err != nil {
-		fmt.Println("read content failed: %v", err)
+		fmt.Println("RoundRobinProxySwitcher error: ", err)
+	}
+	url := "https://www.google.com"
+	var f collect.Fetcher = collect.BrowserFetch{
+		Timeout: 3000 * time.Millisecond,
+		Proxy:   p,
+	}
+	body, err := f.Get(url)
+	if err != nil {
+		fmt.Println("Get error: ", err)
+		return
+	}
+	fmt.Println(string(body))
+
+	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(body))
+	if err != nil {
+		fmt.Println("NewDocumentFromReader error: ", err)
 		return
 	}
 
-	matches := headerRe.FindAllSubmatch(body, -1)
-
-	for _, m := range matches {
-		fmt.Println("fetch card news:", string(m[1]))
-	}
-}
-
-// Fetch 用于获取网页内容
-func Fetch(url string) ([]byte, error) {
-	resp, err := http.Get(url)
-
-	if err != nil {
-		panic(err)
-	}
-
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("Error status code: %v", resp.StatusCode)
-	}
-
-	// 读取网页内容，判断编码，转换成 utf8，再转换成 []byte
-	bodyReader := bufio.NewReader(resp.Body)
-	e := DeterminEncoding(bodyReader)
-	utf8Reader := transform.NewReader(bodyReader, e.NewDecoder())
-	return ioutil.ReadAll(utf8Reader)
-}
-
-// DetermineEncoding 用于判断网页的编码
-func DeterminEncoding(r *bufio.Reader) encoding.Encoding {
-	// 读取前 1024 个字节
-	bytes, err := r.Peek(1024)
-
-	// 如果读取出错，就返回 utf8
-	if err != nil {
-		fmt.Println("fetch error: %v", err)
-		return unicode.UTF8
-	}
-
-	// 判断编码
-	e, _, _ := charset.DetermineEncoding(bytes, "")
-	return e
+	doc.Find("div.news_li h2 a[target=_blank]").Each(func(i int, s *goquery.Selection) {
+		// 获取匹配元素的文本
+		title := s.Text()
+		fmt.Printf("Review %d: %s\n", i, title)
+	})
 }
